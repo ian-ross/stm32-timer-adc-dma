@@ -1,0 +1,5 @@
+clang
+%c -std=c11
+%cpp -std=c++17
+-Ibsp/include
+-DSTM32F767xx
