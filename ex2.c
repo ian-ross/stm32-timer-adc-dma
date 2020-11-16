@@ -13,9 +13,12 @@ static volatile uint16_t dma_adc_sample;
 
 int main(void)
 {
+  // Setup: caches, clocks, LED and button GPIOs, ST-Link USART.
   common_init(true);
+
   usart_print("START\r\n");
 
+  // Set up for DMA ADC of single input channel.
   configure_dma_adc();
 
   char buff[64];
@@ -25,21 +28,26 @@ int main(void)
   bool adc_blink_on = false;
   bool adc_running = false;
   while (1) {
+    // "I'm alive" blinky.
     if (systick_count - blink_start >= 100) {
       LED1_PORT->ODR ^= 1 << LED1_PIN;
       blink_start = systick_count;
     }
 
+    // "ADC in progress" blinky.
     if (adc_blink_on && systick_count - adc_blink_start > 250) {
       CLEAR_BIT(LED2_PORT->ODR, 1 << LED2_PIN);
       adc_blink_on = false;
     }
 
+    // ADC timeout error.
     if (adc_running && systick_count - adc_start > 500) {
       adc_running = false;
       usart_print("ADC TIMEOUT\r\n");
     }
 
+    // Handle button press: start "ADC in progress" blinky, start DMA
+    // ADC.
     if (button_pressed) {
       button_pressed = false;
       usart_print("BUTTON\r\n");
@@ -53,12 +61,14 @@ int main(void)
       start_dma_adc();
     }
 
+    // ADC error interrupt received.
     if (adc_error) {
       adc_error = false;
       adc_running = false;
       usart_print("ADC ERROR!\r\n");
     }
 
+    // DMA complete interrupt received.
     if (dma_complete) {
       dma_complete = false;
       adc_running = false;
@@ -67,6 +77,7 @@ int main(void)
       CLEAR_BIT(ADC1->CR2, ADC_CR2_ADON);
     }
 
+    // DMA error interrupt received.
     if (dma_error) {
       dma_error = false;
       adc_running = false;
@@ -81,7 +92,7 @@ static void configure_dma_adc(void) {
   configure_dma();
 
   // Set ADC group regular trigger source: software trigger.
-  MODIFY_REG(ADC1->CR2, ADC_CR2_EXTSEL, 0);
+  MODIFY_REG(ADC1->CR2, ADC_CR2_EXTEN, 0);
 
   // Set ADC group regular sequencer length: one channel.
   MODIFY_REG(ADC1->SQR1, ADC_SQR1_L, 0);
@@ -92,14 +103,11 @@ static void configure_dma_adc(void) {
   // Set ADC channel 4 sample time: 56 cycles.
   MODIFY_REG(ADC1->SMPR2, ADC_SMPR2_SMP4, 0x03 << ADC_SMPR2_SMP4_Pos);
 
-  // Enable DMA transfer for ADC.
-  MODIFY_REG(ADC1->CR2, ADC_CR2_DMA | ADC_CR2_DDS, ADC_CR2_DDS | ADC_CR2_DMA);
+  // Enable multiple conversions.
+  SET_BIT(ADC1->CR1, ADC_CR1_SCAN);
 }
 
 static void configure_dma(void) {
-  NVIC_SetPriority(DMA2_Stream0_IRQn, 1); // DMA IRQ lower priority than ADC IRQ.
-  NVIC_EnableIRQ(DMA2_Stream0_IRQn);
-
   // Enable DMA peripheral clock.
   __IO uint32_t tmpreg;
   SET_BIT(RCC->AHB1ENR, RCC_AHB1ENR_DMA2EN);
@@ -135,6 +143,8 @@ static void configure_dma(void) {
   MODIFY_REG(DMA2_Stream0->NDTR, DMA_SxNDT, 1);
 
   // Enable DMA interrupts.
+  NVIC_SetPriority(DMA2_Stream0_IRQn, 1); // DMA IRQ lower priority than ADC IRQ.
+  NVIC_EnableIRQ(DMA2_Stream0_IRQn);
   SET_BIT(DMA2_Stream0->CR, DMA_SxCR_TCIE);
   SET_BIT(DMA2_Stream0->CR, DMA_SxCR_TEIE);
 
@@ -143,6 +153,10 @@ static void configure_dma(void) {
 }
 
 static void start_dma_adc(void) {
+  // Reset ADC DMA status (cf. RM Section 15.8.1).
+  CLEAR_BIT(ADC1->CR2, ADC_CR2_DMA);
+  SET_BIT(ADC1->CR2, ADC_CR2_DMA);
+
   // Manually start ADC conversion.
   SET_BIT(ADC1->CR2, ADC_CR2_SWSTART);
 }

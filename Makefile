@@ -9,7 +9,7 @@ INCS = \
   ./bsp/CMSIS/Device/ST/STM32F7xx/include
 
 
-all: build/ex1.out build/ex2.out build/ex3.out build/ex4.out # ex5
+all: build/ex1.out build/ex2.out build/ex3.out build/ex4.out build/ex5.out
 
 
 
@@ -20,15 +20,18 @@ ex1.o: common.h
 ex2.o: common.h
 ex3.o: common.h
 ex4.o: common.h
+ex5.o: common.h
 common.o: common.h
 
 .PHONY: flash-ex1 gdb-ex1
 
-flash-ex1:
-	openocd -f openocd.cfg -c "program build/ex1.out verify reset exit"
+TARGET ?= ex1
 
-gdb-ex1:
-	$(GDB) build/ex1.out
+flash:
+	openocd -f openocd.cfg -c "program build/$(TARGET).out verify reset exit"
+
+gdb:
+	$(GDB) build/$(TARGET).out
 
 
 

@@ -13,8 +13,7 @@ static volatile bool timer_fired = true;
 
 // Timer frequency (Hz). With a 16-bit timer and time base freq min
 // 1Hz, range is min=1Hz, max=32kHz.
-//#define TIMER_FREQUENCY ((uint32_t)1000)
-#define TIMER_FREQUENCY ((uint32_t)1)
+#define TIMER_FREQUENCY ((uint32_t)500)
 
 // Timer minimum frequency (Hz), used to calculate frequency range.
 // With a timer 16 bits, maximum frequency will be 32000 times this
@@ -33,18 +32,18 @@ int main(void)
   // Setup: caches, clocks, LED and button GPIOs, ST-Link USART.
   common_init(false);
 
-  usart_print("START\r\n");
-
   // Set up for timer-driven DMA ADC of four input channels.
   configure_timer_dma_adc();
   SET_BIT(ADC1->CR2, ADC_CR2_ADON);
 
-  char buff[64];
   uint32_t blink_start = systick_count;
   uint32_t adc_blink_start;
   uint32_t adc_start;
   bool adc_blink_on = false;
   bool adc_running = false;
+  for (int i = 0; i < 8; ++i)
+    usart_tx(0xAA);
+  usart_wait();
   while (1) {
     // "I'm alive" blinky.
     if (systick_count - blink_start >= 100) {
@@ -61,7 +60,7 @@ int main(void)
     // ADC timeout error.
     if (adc_running && systick_count - adc_start >= 1500) {
       adc_running = false;
-      usart_print("ADC TIMEOUT\r\n");
+      SET_BIT(LED3_PORT->ODR, 1 << LED3_PIN);
     }
 
     // Timer event: just used here for blinky and timeout.
@@ -78,16 +77,22 @@ int main(void)
     if (dma_complete) {
       dma_complete = false;
       adc_running = false;
-      sprintf(buff, "%d %d %d %d\r\n",
-              dma_adc_sample[0], dma_adc_sample[1], dma_adc_sample[2], dma_adc_sample[3]);
-      usart_print(buff);
+      usart_tx(dma_adc_sample[0] & 0x00FF);
+      usart_tx((dma_adc_sample[0] & 0xFF00) >> 8);
+      usart_tx(dma_adc_sample[1] & 0x00FF);
+      usart_tx((dma_adc_sample[1] & 0xFF00) >> 8);
+      usart_tx(dma_adc_sample[2] & 0x00FF);
+      usart_tx((dma_adc_sample[2] & 0xFF00) >> 8);
+      usart_tx(dma_adc_sample[3] & 0x00FF);
+      usart_tx((dma_adc_sample[3] & 0xFF00) >> 8);
+      usart_wait();
     }
 
     // DMA error interrupt received.
     if (dma_error) {
       dma_error = false;
       adc_running = false;
-      usart_print("DMA ERROR!\r\n");
+      SET_BIT(LED3_PORT->ODR, 1 << LED3_PIN);
     }
   }
 }
@@ -178,7 +183,8 @@ static void configure_timer(void) {
   WRITE_REG(TIM2->PSC, timer_prescaler - 1);
   WRITE_REG(TIM2->ARR, timer_reload - 1);
   MODIFY_REG(TIM2->CR1, (TIM_CR1_DIR | TIM_CR1_CMS), 0);
-  MODIFY_REG(TIM2->CR2, TIM_CR2_MMS, 0x2 << TIM_CR2_MMS_Pos); // TRGO update
+  WRITE_REG(TIM2->RCR, 0);
+  MODIFY_REG(TIM2->CR2, TIM_CR2_MMS, TIM_CR2_MMS_1); // TRGO update
 
   // Enable timer interrupts for debugging.
   SET_BIT(TIM2->DIER, TIM_DIER_UIE);

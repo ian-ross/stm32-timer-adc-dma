@@ -84,11 +84,11 @@ static void configure_clock(void) {
   // dividers to final values.
   MODIFY_REG(RCC->CFGR, RCC_CFGR_PPRE1, RCC_CFGR_PPRE1_DIV16);
   MODIFY_REG(RCC->CFGR, RCC_CFGR_PPRE2, RCC_CFGR_PPRE2_DIV16);
-  MODIFY_REG(RCC->CFGR, RCC_CFGR_HPRE, RCC_CFGR_HPRE_DIV1);
+  MODIFY_REG(RCC->CFGR, RCC_CFGR_HPRE, RCC_CFGR_HPRE_DIV1); // 216 MHz
   MODIFY_REG(RCC->CFGR, RCC_CFGR_SW, RCC_CFGR_SW_PLL);
   while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL) { __asm("nop"); }
-  MODIFY_REG(RCC->CFGR, RCC_CFGR_PPRE1, RCC_CFGR_PPRE1_DIV4);
-  MODIFY_REG(RCC->CFGR, RCC_CFGR_PPRE2, RCC_CFGR_PPRE2_DIV2);
+  MODIFY_REG(RCC->CFGR, RCC_CFGR_PPRE1, RCC_CFGR_PPRE1_DIV8); // 27 MHz
+  MODIFY_REG(RCC->CFGR, RCC_CFGR_PPRE2, RCC_CFGR_PPRE2_DIV4); // 54 MHz
 
   // Update CMSIS system core clock.
   SystemCoreClockUpdate();
@@ -245,9 +245,23 @@ static void configure_stlink_usart(void) {
 
 void usart_print(const char *s) {
   for (const char *pt = s; *pt; ++pt) {
-    while (!(USART3->ISR & USART_ISR_TXE)) { __asm("nop"); }
-    USART3->TDR = *pt;
+    usart_tx(*pt);
   }
+  usart_wait();
+}
+
+
+// Send a single character to USART3.
+
+void usart_tx(char c) {
+  while (!(USART3->ISR & USART_ISR_TXE)) { __asm("nop"); }
+  USART3->TDR = c;
+}
+
+
+// Wait for USART3 idle.
+
+void usart_wait(void) {
   while (!(USART3->ISR & USART_ISR_TC)) { __asm("nop"); }
 }
 

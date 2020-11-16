@@ -55,7 +55,7 @@ static void configure_polled_adc(void) {
   configure_common_adc(1, false);
 
   // Set ADC group regular trigger source: software trigger.
-  MODIFY_REG(ADC1->CR2, ADC_CR2_EXTSEL, 0);
+  MODIFY_REG(ADC1->CR2, ADC_CR2_EXTEN, 0);
 
   // Set ADC group regular sequencer length: one channel.
   MODIFY_REG(ADC1->SQR1, ADC_SQR1_L, 0);

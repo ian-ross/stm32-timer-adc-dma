@@ -16,6 +16,8 @@ extern volatile bool button_pressed;
 
 // Print to ST-Link USART.
 void usart_print(const char *s);
+void usart_tx(char c);
+void usart_wait(void);
 
 // Common ADC configuration.
 void configure_common_adc(int nchannels, bool interrupts);

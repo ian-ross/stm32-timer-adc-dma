@@ -33,3 +33,6 @@
 
 build/
 
+.venv
+.envrc
+.ccls-cache
