@@ -9,19 +9,8 @@ static volatile bool dma_complete = false;
 static volatile bool dma_error = false;
 static volatile bool timer_fired = true;
 
-// ADC trigger timer parameters.
-
-// Timer frequency (Hz). With a 16-bit timer and time base freq min
-// 1Hz, range is min=1Hz, max=32kHz.
+// ADC trigger timer frequency (Hz).
 #define TIMER_FREQUENCY ((uint32_t)500)
-
-// Timer minimum frequency (Hz), used to calculate frequency range.
-// With a timer 16 bits, maximum frequency will be 32000 times this
-// value.
-#define TIMER_FREQUENCY_RANGE_MIN ((uint32_t)1)
-
-// Timer prescaler maximum value (0xFFFF for a 16-bit timer).
-#define TIMER_PRESCALER_MAX_VALUE ((uint32_t)0xFFFF-1)
 
 
 #define NCHANNELS 4
@@ -139,16 +128,7 @@ void TIM2_IRQHandler(void) {
 }
 
 static void configure_timer(void) {
-  // Set up timer TIM2 to fire trigger every SAMPLE_PERIOD ms.
-
-  // Configuration of timer as time base:
-  //
-  // Computation of frequency is done for a timer instance on APB1
-  // (clocked by PCLK1).
-  //
-  // Timer frequency is calculated from the following constants:
-  // - TIMER_FREQUENCY: timer frequency (Hz).
-  // - TIMER_FREQUENCY_RANGE_MIN: timer minimum frequency possible (Hz).
+  // Set up timer TIM2 to fire trigger at frequency TIMER_FREQUENCY.
 
   // Retrieve timer clock source frequency.
   // If APB1 prescaler != 1, timers have a x2 factor on their clock source.
@@ -159,17 +139,11 @@ static void configure_timer(void) {
     timer_clock_frequency *= 2;
   }
 
-  // Timer prescaler calculation (computation for 16-bit timer,
-  // additional + 1 to round the prescaler up).
+  // Timer prescaler (we're using a 27 MHz clock, and we're going to
+  // use a prescaler that gives us a timer update rate of 1 MHz).
+  uint32_t timer_prescaler = 27;
 
-  // Time base prescaler to have timebase aligned on minimum frequency
-  // possible.
-  uint32_t timer_prescaler =
-    (timer_clock_frequency /
-     (TIMER_PRESCALER_MAX_VALUE * TIMER_FREQUENCY_RANGE_MIN)) + 1;
-
-  // Timer reload value in function of timer prescaler to achieve time
-  // base period.
+  // Timer reload value for required time base period.
   uint32_t timer_reload =
     timer_clock_frequency / (timer_prescaler * TIMER_FREQUENCY);
 

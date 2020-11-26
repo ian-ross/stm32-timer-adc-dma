@@ -104,13 +104,14 @@ def make_points(tbase, signal):
              768 - vmargin - adc_scale(y) / 3.3 * (768-2*vmargin))
             for t, y in signal if t <= tbase.ms]
 
-def draw(tbase, signal):
+def draw(tbase, channel, signal):
     screen.fill(black)
 
     if signal is not None:
         pg.draw.line(screen, grey, (0,768-vmargin), (1024,768-vmargin))
         pg.draw.lines(screen, red, False, make_points(tbase, signal), 4)
         screen.blit(tbase.image, (50, 50))
+        screen.blit(font.render("CH %d" % channel, 0, white), (50, 100))
     else:
         screen.blit(waiting, (waiting_x, waiting_y))
 
@@ -121,7 +122,8 @@ def main():
     clock = pg.time.Clock()
     q = queue.SimpleQueue()
 
-    DataCapture(tbase, q).start()
+    dc = DataCapture(tbase, q)
+    dc.start()
 
     signal = None
     while True:
@@ -130,7 +132,7 @@ def main():
         except:
             pass
 
-        draw(tbase, signal)
+        draw(tbase, dc.channel + 1, signal)
 
         for event in pg.event.get():
             if (event.type == pg.QUIT or
@@ -142,6 +144,14 @@ def main():
                     tbase.increase()
                 elif event.key == pg.K_g:
                     tbase.decrease()
+                elif event.key == pg.K_1:
+                    dc.channel = 0
+                elif event.key == pg.K_2:
+                    dc.channel = 1
+                elif event.key == pg.K_3:
+                    dc.channel = 2
+                elif event.key == pg.K_4:
+                    dc.channel = 3
 
         pg.display.flip()
         clock.tick(40)
