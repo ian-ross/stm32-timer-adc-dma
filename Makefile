@@ -12,9 +12,11 @@ INCS = \
 all: build/ex1.out build/ex2.out build/ex3.out build/ex4.out build/ex5.out
 
 
-
 build/%.out: build/%.o $(OBJS)
-	$(do-link)
+	@echo $^ > $(@:.out=.in)
+	@$(CC) $(LDFLAGS) @$(@:.out=.in) -Wl,-Map=$(@:.out=.map) -o $@
+	@$(SIZE) $@
+
 
 ex1.o: common.h
 ex2.o: common.h
@@ -33,16 +35,7 @@ flash:
 gdb:
 	$(GDB) build/$(TARGET).out
 
-
-
 LINKER_SCRIPT := ./bsp/STM32F767ZITx_FLASH.ld
-
-define do-link =
-@echo $^ > $(@:.out=.in)
-@$(CC) $(LDFLAGS) @$(@:.out=.in) -Wl,-Map=$(@:.out=.map) -o $@
-@$(SIZE) $@
-endef
-
 
 OPT = -O3 -g3
 #OPT = -g
@@ -60,7 +53,7 @@ ASMFLAGS += $(COMMON_FLAGS) -g3
 
 LDFLAGS += -T$(LINKER_SCRIPT)
 LDFLAGS += -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard
-LDFLAGS += -specs=nano.specs -specs=nosys.specs -lc -lm -lnosys
+LDFLAGS += -specs=nosys.specs -lc -lm -lnosys
 LDFLAGS += -Wl,--gc-sections
 
 
